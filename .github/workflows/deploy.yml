@@ -30,6 +30,8 @@ jobs:
       - run: npm ci
 
       - run: npm run build
+        env:
+          VITE_BASE: /doinsport-sessions/
 
       - uses: actions/configure-pages@v5
 
