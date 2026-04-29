@@ -11,8 +11,31 @@ if [ -z "$PROJECT_ID" ]; then
   exit 1
 fi
 
+REGION="europe-west1"
+REPO_NAME="docker-repo"
+
 echo "📝 Configuration du projet: $PROJECT_ID"
 gcloud config set project "$PROJECT_ID"
+
+echo ""
+echo "🔌 Activation des APIs nécessaires..."
+gcloud services enable \
+  artifactregistry.googleapis.com \
+  run.googleapis.com \
+  iam.googleapis.com \
+  --project="$PROJECT_ID"
+
+echo ""
+echo "📦 Création du dépôt Artifact Registry '$REPO_NAME' ($REGION)..."
+gcloud artifacts repositories describe "$REPO_NAME" \
+  --location="$REGION" \
+  --project="$PROJECT_ID" >/dev/null 2>&1 \
+  && echo "   (dépôt existe déjà, c'est OK)" \
+  || gcloud artifacts repositories create "$REPO_NAME" \
+    --repository-format=docker \
+    --location="$REGION" \
+    --project="$PROJECT_ID" \
+    --description="Docker images for Cloud Run deployments"
 
 echo ""
 echo "🤖 Création du service account 'github-deployer'..."
