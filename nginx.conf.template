@@ -12,20 +12,20 @@ server {
     gzip_types text/plain text/css text/javascript application/javascript application/json image/svg+xml;
 
     # Cache long pour les assets versionnés
-    location /assets/ {
+    location /doinsport-sessions/assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 
     # Service worker et manifest : pas de cache
-    location = /sw.js {
+    location = /doinsport-sessions/sw.js {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
-    location = /registerSW.js {
+    location = /doinsport-sessions/registerSW.js {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
-    location = /manifest.webmanifest {
+    location = /doinsport-sessions/manifest.webmanifest {
         add_header Cache-Control "no-cache, no-store, must-revalidate";
     }
 
@@ -33,6 +33,36 @@ server {
     location = /healthz {
         access_log off;
         return 200 "ok\n";
+    }
+
+    # Proxy vers l'API Doinsport (via /api-proxy/)
+    # Ex: /api-proxy/api-principale/api/login_check -> https://api-principale.doinsport.club/api/login_check
+    location ~ ^/api-proxy/([^/]+)/(.*)$ {
+        set $doinsport_host $1;
+        set $doinsport_path $2;
+        
+        # Construire l'URL cible
+        proxy_pass https://$doinsport_host.doinsport.club/$doinsport_path;
+        
+        # Headers essentiels
+        proxy_set_header Host $doinsport_host.doinsport.club;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Passer les headers d'auth
+        proxy_pass_request_headers on;
+        
+        # CORS : autoriser les requêtes cross-origin
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept' always;
+        add_header 'Access-Control-Max-Age' '86400' always;
+        
+        # Gérer les requêtes OPTIONS
+        if ($request_method = 'OPTIONS') {
+            return 200;
+        }
     }
 
     # SPA fallback : toutes les routes redirigent vers index.html

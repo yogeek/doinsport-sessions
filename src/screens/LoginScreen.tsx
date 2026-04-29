@@ -55,18 +55,25 @@ export default function LoginScreen({ presetBaseUrl, presetClubId }: Props) {
           <p className="mt-4 text-cream-100/70 text-sm max-w-sm">
             Démo d'intégration avec l'API Doinsport. Consulte la disponibilité
             des terrains de ton club pour organiser des sessions.
+            {new URL(window.location.href).hostname.includes('github.io') && (
+              <>
+                <br />
+                <strong>⚠️ GitHub Pages</strong> : Pour éviter les problèmes CORS,
+                utilise plutôt Cloud Run (voir README).
+              </>
+            )}
           </p>
         </div>
       </div>
 
       {/* Formulaire */}
-      <div className="flex-1 px-6 -mt-10 pb-12 relative">
+      <div className="flex-1 px-6 -mt-10 pb-12">
         <div className="max-w-md mx-auto">
           <form onSubmit={handleSubmit} className="card p-6 space-y-5">
             <h2 className="text-xl font-semibold">Connexion</h2>
 
             <div>
-              <label htmlFor="email" className="label">Email</label>
+              <label htmlFor="email" className="label">Adresse email Doinsport</label>
               <div className="relative">
                 <Mail
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-forest-700/40"
@@ -81,9 +88,12 @@ export default function LoginScreen({ presetBaseUrl, presetClubId }: Props) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field pl-10"
-                  placeholder="ton.email@club.com"
+                  placeholder="john@example.com"
                 />
               </div>
+              <p className="mt-1 text-xs text-forest-700/60">
+                L'adresse email associée à ton compte Doinsport (manager ou joueur)
+              </p>
             </div>
 
             <div>
@@ -155,6 +165,11 @@ export default function LoginScreen({ presetBaseUrl, presetClubId }: Props) {
                 {loginError}
               </div>
             )}
+
+            <div className="text-xs text-forest-700/60 rounded-lg bg-cream-100 px-3 py-2">
+              💡 <strong>Manager ou joueur ?</strong> Peu importe — connecte-toi avec ton email
+              Doinsport et ton mot de passe. L'app détectera automatiquement tes droits.
+            </div>
 
             <button
               type="submit"

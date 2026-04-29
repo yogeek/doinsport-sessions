@@ -66,8 +66,20 @@ npm install && npm run dev
 # Essayer de te logger
 ```
 
-Si le login marche → CORS devrait passer sur GitHub Pages.
-Si le login échoue avec une erreur réseau CORS → utilise Cloud Run (voir ci-dessous).
+**Résultat :**
+- ✅ Login marche → CORS est ouvert, GitHub Pages fonctionnera
+- ❌ Erreur CORS → GitHub Pages ne fonctionnera pas, utilise Cloud Run (voir ci-dessous)
+
+**Pourquoi CORS peut être bloqué ?**
+
+L'app appelle directement l'API Doinsport depuis le navigateur. Si l'API a restreint 
+les domaines autorisés (whitelist), `github.io` sera bloqué.
+
+**Solution si CORS échoue : déployer sur Cloud Run**
+
+Le Dockerfile inclut Nginx qui proxifie automatiquement les requêtes vers l'API Doinsport
+avec les bons headers CORS. Tu n'as rien à changer — l'app détecte le contexte et utilise
+le proxy automatiquement.
 
 ## Configuration utilisateur
 
@@ -94,16 +106,31 @@ VITE_DOINSPORT_CLUB_ID=abc123...      # optionnel
 
 ## Déploiement Cloud Run (si CORS bloqué sur GitHub Pages)
 
-Si le test local montre que CORS bloque l'API Doinsport, tu as deux options :
+Si le test local montre que CORS bloque l'API Doinsport, déploie sur Cloud Run.
 
-**Option A (recommandée pour une démo)** : Utiliser Cloud Run avec un proxy CORS en Nginx
-(déjà intégré au Dockerfile). Cloud Run servira à la fois le frontend et fera du reverse proxy.
+C'est aussi simple que GitHub Pages :
 
-**Option B** : Modifier l'app pour appeler une API gateway custom (Cloudflare Worker, etc.)
+```bash
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
 
-Voici l'Option A :
+gcloud run deploy doinsport-sessions \
+  --source . \
+  --region europe-west1 \
+  --allow-unauthenticated \
+  --port 8080
+```
 
-### Build local Docker
+Cloud Run va :
+1. ✅ Détecter le Dockerfile
+2. ✅ Builder l'image (Vite + Nginx)
+3. ✅ Déployer et générer une URL publique
+4. ✅ Nginx proxifiera automatiquement les requêtes API (plus de CORS !)
+
+L'URL sera : `https://doinsport-sessions-xxxxx.run.app/doinsport-sessions/`
+
+**Bonus** : Tu peux mettre à jour la base de données des clubs via des secrets Cloud Run 
+(voir section Variables d'environnement ci-dessous).
 
 ```bash
 docker build -t doinsport-sessions .
@@ -196,20 +223,28 @@ IRI string `/clubs/abc123` ou un objet hydraté selon la sérialisation). Trois 
 
 ### GitHub Pages vs Cloud Run : le dilemme CORS
 
-**GitHub Pages** : gratuit, pas de maintenance, mais risque de **CORS bloqué**.
+**GitHub Pages** : gratuit, mais l'API Doinsport peut bloquer les requêtes depuis `github.io`.
 
-Doinsport peut avoir restreint l'API à certains domaines. Si tu pushes sur GitHub Pages
-et que le login échoue avec une erreur réseau CORS, tu devras utiliser Cloud Run.
+**Cloud Run + Nginx Proxy** : L'app inclut un proxy CORS intelligent :
+- Si servie depuis Cloud Run → Nginx proxifie automatiquement les requêtes vers Doinsport
+- Si servie depuis GitHub Pages → les appels vont directement (risque de CORS)
+- Si servie depuis localhost → directes également
 
-**Test avant de choisir :**
+**Comment ça marche :**
 
-```bash
-npm run dev
-# Essaie de te logger sur http://localhost:5173
+```
+GitHub Pages:
+Client (github.io) → [CORS bloqué] → Doinsport API ❌
+
+Cloud Run:
+Client (run.app) → Nginx proxy (/api-proxy/*) → Doinsport API ✅
+                   (ajoute les bons headers CORS)
 ```
 
-Si ça marche → CORS devrait passer aussi sur GitHub Pages.
-Si ça échoue → utilise Cloud Run + le Dockerfile existant (qui peut ajouter un proxy CORS).
+L'app détecte automatiquement le contexte et transforme les URLs :
+- `https://api-principale.doinsport.club/api/login_check` 
+- → `/api-proxy/api-principale/api/login_check` (sur Cloud Run)
+- → reste direct sur GitHub Pages
 
 ### Configuration Doinsport
 
@@ -233,3 +268,13 @@ Si ça échoue → utilise Cloud Run + le Dockerfile existant (qui peut ajouter 
 - Envoi automatique d'invitations (email / WhatsApp / SMS) → sortie du périmètre API Doinsport
 - Vue semaine façon calendrier avec tous les slots
 - Gestion multi-clubs
+
+## 🤖 Automatiser le déploiement Cloud Run
+
+Si tu veux que chaque `git push` déploie automatiquement sur Cloud Run (avec GitHub Actions),
+suis le guide complet :
+
+👉 **[CLOUD_RUN_SETUP.md](./CLOUD_RUN_SETUP.md)** — Configuration du service account, secrets GitHub, et workflow automatisé
+
+Ce guide t'apprend les bases de l'CI/CD avec GitHub Actions + Google Cloud. C'est une excellente
+learning experience ! 🚀

@@ -8,6 +8,36 @@ import type {
   Club
 } from '../types'
 
+// Déterminer si on est sur Cloud Run (ou une URL custom, pas GitHub Pages)
+function isProxyMode(): boolean {
+  const host = typeof window !== 'undefined' ? window.location.hostname : ''
+  // GitHub Pages = github.io
+  // Cloud Run = *.run.app ou localhost/127.0.0.1
+  return !host.includes('github.io') && host !== ''
+}
+
+/**
+ * Transformer une URL Doinsport pour utiliser le proxy Nginx si nécessaire.
+ * Ex: https://api-principale.doinsport.club/api/login_check
+ *  -> /api-proxy/api-principale/api/login_check
+ */
+function transformUrlForProxy(url: string): string {
+  if (!isProxyMode()) return url
+
+  try {
+    const parsed = new URL(url)
+    // Extraire le subdomain (api-principale, allin-api, etc.)
+    const hostParts = parsed.hostname.split('.')
+    const subdomain = hostParts[0]
+    const pathname = parsed.pathname
+
+    // Construire l'URL relative du proxy
+    return `/api-proxy/${subdomain}${pathname}${parsed.search}`
+  } catch {
+    return url
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -28,7 +58,9 @@ async function request<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
-  const url = `${normalizeBaseUrl(baseUrl)}${path}`
+  const fullUrl = `${normalizeBaseUrl(baseUrl)}${path}`
+  const url = transformUrlForProxy(fullUrl)
+  
   let response: Response
   try {
     response = await fetch(url, init)
