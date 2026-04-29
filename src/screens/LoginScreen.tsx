@@ -67,7 +67,7 @@ export default function LoginScreen({ presetBaseUrl, presetClubId }: Props) {
       </div>
 
       {/* Formulaire */}
-      <div className="flex-1 px-6 -mt-10 pb-12">
+      <div className="flex-1 px-6 -mt-10 pb-12 relative">
         <div className="max-w-md mx-auto">
           <form onSubmit={handleSubmit} className="card p-6 space-y-5">
             <h2 className="text-xl font-semibold">Connexion</h2>
